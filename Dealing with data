@@ -1,0 +1,35 @@
+%Yuetian Zhao 
+%Dealing input and output cell array
+
+load('B0005.mat');
+
+%initial input/output cell array
+XTrain={};
+YTrain={};
+
+batteryinf=B0005.cycle;
+
+%temp1 is discharge phase to dealing features  temp2 is charge phase features
+temp1=[batteryinf(2).data.Voltage_measured;batteryinf(2).data.Current_measured;batteryinf(2).data.Temperature_measured;batteryinf(2).data.Current_load;batteryinf(2).data.Voltage_load];
+len=size(batteryinf(2).data.Voltage_measured,2);
+temp2=[batteryinf(2-1).data.Voltage_measured(:,1:len);batteryinf(2-1).data.Current_measured(:,1:len);batteryinf(2-1).data.Temperature_measured(:,1:len);batteryinf(2-1).data.Current_charge(:,1:len);batteryinf(2-1).data.Voltage_charge(:,1:len)];
+cnt=1;
+YTrain{1,1}=batteryinf(2).data.Capacity;
+XTrain{cnt,1}=[temp1;temp2];
+
+%dealing all features
+for i=4:616
+if(strcmp(batteryinf(i).type,'discharge'))
+temp1=[batteryinf(i).data.Voltage_measured;batteryinf(i).data.Current_measured;batteryinf(i).data.Temperature_measured;batteryinf(i).data.Current_load;batteryinf(i).data.Voltage_load];
+len=size(batteryinf(i).data.Voltage_measured,2);
+count=1;
+while  strcmp(batteryinf(i-count).type,'charge')==false
+count=count+1;
+end
+temp2=[batteryinf(i-count).data.Voltage_measured(:,1:len);batteryinf(i-count).data.Current_measured(:,1:len);batteryinf(i-count).data.Temperature_measured(:,1:len);batteryinf(i-count).data.Current_charge(:,1:len);batteryinf(i-count).data.Voltage_charge(:,1:len)];
+cnt=cnt+1;
+temp1=[temp1;temp2];
+XTrain{cnt,1}=[temp1];
+YTrain{cnt,1}=batteryinf(2).data.Capacity;
+end
+end
