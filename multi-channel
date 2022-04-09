@@ -1,0 +1,233 @@
+%load database and initialize parameter
+
+load('C:\Users\skadoodle\Desktop\B0005.mat');
+load('C:\Users\skadoodle\Desktop\B0006.mat');
+load('C:\Users\skadoodle\Desktop\B0007.mat');
+load('C:\Users\skadoodle\Desktop\B0018.mat');
+
+batteryinf_for_training1=B0005.cycle;
+batteryinf_for_training2=B0006.cycle;
+batteryinf_for_training3=B0007.cycle;
+batteryinf_for_training4=B0018.cycle;
+
+%batteryinf_for_training=[batteryinf_for_training1 batteryinf_for_training2 batteryinf_for_training3];
+batteryinf_for_training=[batteryinf_for_training3];
+batteryinf_for_test=batteryinf_for_training2;
+batteryinf_for_validation=batteryinf_for_training1;
+
+%cross test 2 database use for trainning 1 for validation 1 for test 
+XTrain={};
+YTrain=[];
+XValid={};
+YValid=[];
+XTest={};
+YTest=[];
+
+%   voltage current temperature as row vector for 1 cycle ,only 10 samples
+%   required
+charge_parameter=[];
+
+count=1;
+
+%use capacity as soh train set
+%train set
+for i=1:(size(batteryinf_for_training,2))
+    if(strcmp(batteryinf_for_training(i).type,'discharge'))
+        YTrain=[YTrain;batteryinf_for_training(i).data.Capacity];
+    end
+end
+
+%test set
+for i=1:(size(batteryinf_for_test,2))
+    if(strcmp(batteryinf_for_test(i).type,'discharge'))
+        YTest=[YTest;batteryinf_for_test(i).data.Capacity];
+    end
+end
+
+%validation set
+for i=1:(size(batteryinf_for_validation,2))
+    if(strcmp(batteryinf_for_validation(i).type,'discharge'))
+        YValid=[YValid;batteryinf_for_validation(i).data.Capacity];
+    end
+end
+
+%training set
+for i=1:(size(batteryinf_for_training,2))
+    if(strcmp(batteryinf_for_training(i).type,'charge'))
+        %normalize the data
+        len=size(batteryinf_for_training(i).data.Time,2);
+        interval=size(batteryinf_for_training(i).data.Time,2)/10;
+        max_cur=max(batteryinf_for_training(i).data.Current_measured);
+        min_cur=min(batteryinf_for_training(i).data.Current_measured);
+        max_temp=max(batteryinf_for_training(i).data.Temperature_measured);
+        min_temp=min(batteryinf_for_training(i).data.Temperature_measured);
+        max_vol=max(batteryinf_for_training(i).data.Voltage_measured); 
+        min_vol=min(batteryinf_for_training(i).data.Voltage_measured);
+        cnt=1;
+        
+        while cnt*interval<=size(batteryinf_for_training(i).data.Time,2)
+            matrix=[(batteryinf_for_training(i).data.Current_measured(1,round(cnt*interval))-min_cur)/(max_cur-min_cur);(batteryinf_for_training(i).data.Temperature_measured(1,round(cnt*interval))- min_temp)/(max_temp-min_temp);(batteryinf_for_training(i).data.Voltage_measured(1,round(cnt*interval))- min_vol)/(max_vol-min_vol)];
+            charge_parameter=[charge_parameter matrix];
+            cnt=cnt+1;
+        end
+      
+        charge_parameter=[charge_parameter; ones(1,10)*YTrain(count,1)]
+        XTrain{count,1}=[charge_parameter];
+        charge_parameter=[];
+        if(count<size(YTrain,1))
+        count=count+1;
+        end
+        
+    end
+end
+
+%test set
+count=1;
+for i=1:(size(batteryinf_for_test,2))
+    if(strcmp(batteryinf_for_test(i).type,'charge'))
+        %normalize the data
+        len=size(batteryinf_for_test(i).data.Time,2);
+        interval=size(batteryinf_for_test(i).data.Time,2)/10;
+        max_cur=max(batteryinf_for_test(i).data.Current_measured);
+        min_cur=min(batteryinf_for_test(i).data.Current_measured);
+        max_temp=max(batteryinf_for_test(i).data.Temperature_measured);
+        min_temp=min(batteryinf_for_test(i).data.Temperature_measured);
+        max_vol=max(batteryinf_for_test(i).data.Voltage_measured); 
+        min_vol=min(batteryinf_for_test(i).data.Voltage_measured);
+        cnt=1;
+        
+        while cnt*interval<=size(batteryinf_for_test(i).data.Time,2)
+            matrix=[(batteryinf_for_test(i).data.Current_measured(1,round(cnt*interval))-min_cur)/(max_cur-min_cur);(batteryinf_for_test(i).data.Temperature_measured(1,round(cnt*interval))- min_temp)/(max_temp-min_temp);(batteryinf_for_test(i).data.Voltage_measured(1,round(cnt*interval))- min_vol)/(max_vol-min_vol)];
+            charge_parameter=[charge_parameter matrix];
+            cnt=cnt+1;
+        end
+      
+        charge_parameter=[charge_parameter; ones(1,10)*YTest(count,1)]
+        XTest{count,1}=[charge_parameter];
+        charge_parameter=[];
+        if(count<size(YTest,1))
+        count=count+1;
+        end
+        
+    end
+end
+
+%validation set
+count=1;
+for i=1:(size(batteryinf_for_validation,2))
+    if(strcmp(batteryinf_for_validation(i).type,'charge'))
+        %normalize the data
+        len=size(batteryinf_for_validation(i).data.Time,2);
+        interval=size(batteryinf_for_validation(i).data.Time,2)/10;
+        max_cur=max(batteryinf_for_validation(i).data.Current_measured);
+        min_cur=min(batteryinf_for_validation(i).data.Current_measured);
+        max_temp=max(batteryinf_for_validation(i).data.Temperature_measured);
+        min_temp=min(batteryinf_for_validation(i).data.Temperature_measured);
+        max_vol=max(batteryinf_for_validation(i).data.Voltage_measured); 
+        min_vol=min(batteryinf_for_validation(i).data.Voltage_measured);
+        cnt=1;
+        
+        while cnt*interval<=size(batteryinf_for_validation(i).data.Time,2)
+            matrix=[(batteryinf_for_validation(i).data.Current_measured(1,round(cnt*interval))-min_cur)/(max_cur-min_cur);(batteryinf_for_validation(i).data.Temperature_measured(1,round(cnt*interval))- min_temp)/(max_temp-min_temp);(batteryinf_for_validation(i).data.Voltage_measured(1,round(cnt*interval))- min_vol)/(max_vol-min_vol)];
+            charge_parameter=[charge_parameter matrix];
+            cnt=cnt+1;
+        end
+      
+      charge_parameter=[charge_parameter; ones(1,10)*YValid(count,1)]
+        XValid{count,1}=[charge_parameter];
+        charge_parameter=[];
+        if(count<size(YValid,1))
+        count=count+1;
+        end
+        
+    end
+end
+
+XTrain=XTrain(1:end-1,1);
+YTrain=YTrain(2:end,1);
+XTest=XTest(1:end-1,1);
+YTest=YTest(2:end,1);
+XValid=XValid(1:end-1,1);
+YValid=YValid(2:end,1);
+
+numFeatures=size(XTrain{1},1);
+numHiddenUnits = size(XTrain,1);
+
+
+layers = [ ...
+    sequenceInputLayer(numFeatures)
+    lstmLayer(numHiddenUnits,'OutputMode','last')
+    fullyConnectedLayer(1)
+    regressionLayer];
+
+maxEpochs = 600;
+miniBatchSize = 20;
+
+options = trainingOptions('adam', ...
+    'MaxEpochs',maxEpochs, ...
+    'MiniBatchSize',miniBatchSize, ...
+    'InitialLearnRate',0.001, ...
+    'GradientThreshold',0.001, ...
+     'ValidationData',{XValid,YValid}, ...
+    'Shuffle','never', ...
+    'Plots','training-progress', ...
+    'OutputFcn',@(info)stopIfAccuracyNotImproving(info,0.02), ...
+    'Verbose',0);
+mape=0;
+
+net = trainNetwork(XTrain,YTrain,layers,options);
+YPred=predict(net,XTest);
+for i=1:size(YPred,1)
+    mape=mape+abs(YPred(i,1)-YTest(i,1))/YTest(i,1);
+end
+mape=mape*100/size(YPred,1);
+
+
+
+x=[1:167];
+y=[];
+yt=[];
+for i=1:size(YTest,1)
+    y=[y YPred(i,1)];
+end
+
+for i=1:size(YPred,1)
+    yt=[yt YTest(i,1)]
+end
+   
+%calculate mape
+plot(x,y,'-r',x,yt,'--k');
+legend('predict data','expected data');
+title('predicted capacity after charge and discharge phase compare with real value');
+xlabel('cycle');
+ylabel('capacity(Ahr)');
+
+function stop = stopIfAccuracyNotImproving(info,RMSE)
+
+stop = false;
+
+% Keep track of the best validation accuracy and the number of validations for which
+% there has not been an improvement of the accuracy.
+persistent bestRMSE
+
+% Clear the variables when training starts.
+if info.State == "start"
+    bestRMSE = 1;
+    
+elseif ~isempty(info.ValidationLoss)
+    
+
+    if info.ValidationRMSE< bestRMSE
+        bestRMSE = info.ValidationRMSE;
+    end
+    
+    % If the validation lag is at least N, that is, the validation accuracy
+    % has not improved for at least N validations, then return true and
+    % stop training.
+    if bestRMSE<= RMSE
+        stop = true;
+    end
+    
+end
+
+end
