@@ -1,0 +1,162 @@
+load('C:\Users\skadoodle\Desktop\B0005.mat');
+load('C:\Users\skadoodle\Desktop\B0006.mat');
+load('C:\Users\skadoodle\Desktop\B0007.mat');
+load('C:\Users\skadoodle\Desktop\B0018.mat');
+
+
+batteryinf_for_training1=B0005.cycle;
+batteryinf_for_training2=B0006.cycle;
+batteryinf_for_training3=B0007.cycle;
+batteryinf_for_training4=B0018.cycle;
+
+
+
+batteryinf_for_training=[batteryinf_for_training1];
+batteryinf_for_validation=[batteryinf_for_training2];
+
+CAPACITY=[];
+CAPACITY1=[];
+XTrain={};
+YTrain=[];
+XValid={};
+YValid=[];
+XTest={};
+YTest=[];
+chargephase=[];
+
+for i=1:(size(batteryinf_for_training,2))
+    if(strcmp(batteryinf_for_training(i).type,'discharge'))
+        CAPACITY=[CAPACITY;batteryinf_for_training(i).data.Capacity];
+    end
+end
+for i=1:(size(batteryinf_for_validation,2))
+    if(strcmp(batteryinf_for_validation(i).type,'discharge'))
+        CAPACITY1=[CAPACITY1;batteryinf_for_validation(i).data.Capacity];
+    end
+end
+
+
+
+
+
+count=1;
+for i=1:80
+    for j=0:79
+        chargephase=[chargephase CAPACITY(i+j,1)];
+    end
+    XTrain{i,1}=[chargephase];
+    chargephase=[];
+end
+count=1;
+for i=1:20
+    for j=0:79
+        chargephase=[chargephase CAPACITY(i+j,1)-0.3];
+    end
+    XValid{i,1}=[chargephase];
+    chargephase=[];
+end
+for i=0:79
+    YTrain=[YTrain;  CAPACITY(i+81,1)];
+end
+for i=0:19
+    YValid=[YValid;  CAPACITY(i+21,1)-0.5];
+end
+
+CAPACITY=[];
+for i=1:(size(batteryinf_for_training4,2))
+    if(strcmp(batteryinf_for_training4(i).type,'discharge'))
+        CAPACITY=[CAPACITY;batteryinf_for_training4(i).data.Capacity];
+    end
+end
+
+for i=1:40
+    for j=0:79
+        chargephase=[chargephase CAPACITY(i+j,1)];
+    end
+    XTest{i,1}=[chargephase];
+    chargephase=[];
+end
+
+for i=0:39
+    YTest=[YTest;  CAPACITY(i+81,1)];
+end
+
+numFeatures=size(XTrain{1},1);
+numHiddenUnits = size(XTrain,1);
+
+layers = [ ...
+    sequenceInputLayer(numFeatures)
+    lstmLayer(numHiddenUnits,'OutputMode','last')
+    fullyConnectedLayer(1)
+    regressionLayer];
+
+maxEpochs = 600;
+miniBatchSize = 20;
+
+options = trainingOptions('adam', ...
+    'MaxEpochs',maxEpochs, ...
+    'MiniBatchSize',miniBatchSize, ...
+    'InitialLearnRate',0.001, ...
+    'GradientThreshold',0.001, ...
+    'Shuffle','never', ...
+     'ValidationData',{XValid,YValid}, ...
+     'Plots','training-progress',...
+     'validationPatience',60,...
+      'OutputFcn',@(info)stopIfAccuracyNotImproving(info,0.02), ...
+    'Verbose',0);
+
+
+net = trainNetwork(XTrain,YTrain,layers,options);
+YPred=predict(net,XTest);
+%calculate mape
+mape=0;
+for i=1:size(YPred,1)
+    mape=mape+abs(YPred(i,1)-YTest(i,1))/YTest(i,1);
+end
+mape=mape*100/size(YPred,1);
+
+x=[1:40];
+y=[];
+yt=[];
+for i=1:size(YTest,1)
+    y=[y YPred(i,1)];
+end
+
+for i=1:size(YPred,1)
+    yt=[yt YTest(i,1)]
+end
+
+%calculate mape
+plot(x,y,'-r',x,yt,'--k');
+legend('predict data','expected data');
+title('predicted capacity after charge and discharge phase compare with real value');
+xlabel('cycle');
+ylabel('capacity(Ahr)');
+
+function stop = stopIfAccuracyNotImproving(info,RMSE)
+
+stop = false;
+
+
+persistent bestRMSE
+
+% Clear the variables when training starts.
+if info.State == "start"
+    bestRMSE = 1;
+    
+elseif ~isempty(info.ValidationLoss)
+    
+
+    if info.ValidationRMSE< bestRMSE
+        bestRMSE = info.ValidationRMSE;
+    end
+    
+
+    if bestRMSE<= RMSE
+        stop = true;
+    end
+    
+end
+
+end
+        
